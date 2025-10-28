@@ -50,82 +50,29 @@ using namespace mdsl;
 std::string source = "x = 10 + 20";
 
 auto lexer = std::make_shared<lexer::Lexer>(source);
-auto parser = MyParser(lexer);
-auto ast = parser.Parse();
-auto irModule = GenerateIR(ast);
-auto code = codegen::CppEmitter().Emit(irModule);
+lexer->AddKeyword("let", lexer::TokenType::UserDefinedStart);
+
+ir::IRModule module("example");
+ir::IRBuilder builder;
+builder.SetModule(&module);
+
+auto func = module.CreateFunction("main");
+auto entry = func->CreateBasicBlock("entry");
+builder.SetInsertPoint(entry);
+
+auto c1 = builder.CreateConstant(10);
+auto c2 = builder.CreateConstant(20);
+auto result = builder.CreateAdd(c1, c2);
+
+codegen::CppEmitter emitter;
+auto code = emitter.Emit(module);
 ```
 
-### Example: Simple Expression Language
+### Example: Tokenizing Source Code
 
 ```cpp
 #include <mdsl.h>
-
-class ExprLexer : public mdsl::lexer::Lexer
-{
-public:
-    ExprLexer(const std::string& source) : Lexer(source)
-    {
-        AddKeyword("let", TokenType::UserDefinedStart);
-        AddKeyword("print", TokenType::UserDefinedStart + 1);
-    }
-};
-
-class ExprParser : public mdsl::parser::RecursiveDescentParser
-{
-public:
-    ExprParser(std::shared_ptr<mdsl::lexer::ILexer> lex)
-    {
-        lexer = lex;
-        currentToken = lexer->NextToken();
-    }
-
-    std::shared_ptr<mdsl::ast::ASTNode> ParseStatement()
-    {
-        if (currentToken.type == TokenType::Identifier)
-        {
-            auto name = currentToken.value;
-            Consume(TokenType::Identifier);
-            Consume(TokenType::Equals);
-            auto expr = ParseExpression();
-            return std::make_shared<AssignmentNode>(name, expr);
-        }
-        return nullptr;
-    }
-
-    std::shared_ptr<mdsl::ast::ASTNode> ParseExpression()
-    {
-        auto left = ParsePrimary();
-
-        while (currentToken.type == TokenType::Plus ||
-               currentToken.type == TokenType::Minus)
-        {
-            auto op = currentToken;
-            Advance();
-            auto right = ParsePrimary();
-            left = std::make_shared<BinaryOpNode>(op, left, right);
-        }
-
-        return left;
-    }
-
-    std::shared_ptr<mdsl::ast::ASTNode> ParsePrimary()
-    {
-        if (currentToken.type == TokenType::Number)
-        {
-            auto value = currentToken.value;
-            Advance();
-            return std::make_shared<NumberNode>(value);
-        }
-        else if (currentToken.type == TokenType::Identifier)
-        {
-            auto name = currentToken.value;
-            Advance();
-            return std::make_shared<VariableNode>(name);
-        }
-        return nullptr;
-    }
-};
+#include <iostream>
 
 int main()
 {
@@ -135,21 +82,20 @@ int main()
         result = x + y
     )";
 
-    auto lexer = std::make_shared<ExprLexer>(source);
-    ExprParser parser(lexer);
+    mdsl::lexer::Lexer lexer(source);
+    lexer.AddKeyword("let", mdsl::lexer::TokenType::UserDefinedStart);
+    lexer.AddKeyword("var", mdsl::lexer::TokenType::UserDefinedStart + 1);
 
-    auto ast = parser.Parse();
+    mdsl::lexer::Token token;
+    while (!lexer.IsAtEnd())
+    {
+        token = lexer.NextToken();
+        if (token.type == mdsl::lexer::TokenType::EndOfFile)
+            break;
 
-    mdsl::semantic::SymbolTable symbols;
-    mdsl::semantic::SemanticAnalyzer analyzer(symbols);
-    analyzer.Analyze(ast);
-
-    mdsl::ir::IRModule module("expr_program");
-    mdsl::ir::IRBuilder builder(module);
-    builder.GenerateIR(ast);
-
-    mdsl::codegen::CppEmitter emitter;
-    std::string output = emitter.Emit(module);
+        std::cout << mdsl::lexer::TokenTypeToString(token.type)
+                  << ": " << token.lexeme << "\n";
+    }
 
     return 0;
 }
@@ -158,45 +104,55 @@ int main()
 ### Creating Custom Code Generators
 
 ```cpp
-class MyBackend : public mdsl::codegen::CodeEmitter
+#include <mdsl.h>
+#include <sstream>
+
+std::string EmitCustomBackend(const mdsl::ir::IRModule& module)
 {
-public:
-    std::string Emit(const mdsl::ir::IRModule& module) override
+    std::stringstream output;
+
+    for (const auto& func : module.GetFunctions())
     {
-        std::stringstream output;
+        output << "function " << func->GetName() << ":\n";
 
-        for (const auto& func : module.GetFunctions())
+        for (const auto& block : func->GetBasicBlocks())
         {
-            output << "function " << func.GetName() << ":\n";
+            output << "  " << block->GetName() << ":\n";
 
-            for (const auto& block : func.GetBlocks())
+            for (const auto& instr : block->GetInstructions())
             {
-                for (const auto& instr : block.GetInstructions())
-                {
-                    output << "  " << EmitInstruction(instr) << "\n";
-                }
+                output << "    %" << instr->GetId() << " = ";
+                output << mdsl::ir::IRInstruction::OpcodeToString(instr->GetOpcode());
+                output << "\n";
             }
         }
-
-        return output.str();
     }
-};
+
+    return output.str();
+}
 ```
 
-### Type Checking
+### Working with Types
 
 ```cpp
-mdsl::semantic::TypeSystem types;
-types.RegisterType("int", mdsl::semantic::TypeKind::Integer);
-types.RegisterType("float", mdsl::semantic::TypeKind::Float);
-types.RegisterType("string", mdsl::semantic::TypeKind::String);
+#include <mdsl.h>
 
-mdsl::semantic::TypeChecker checker(types);
-auto exprType = checker.CheckExpression(astNode);
+mdsl::semantic::TypeRegistry registry;
 
-if (exprType != expectedType)
+auto intType = std::make_shared<mdsl::semantic::PrimitiveType>(
+    mdsl::semantic::TypeKind::Integer, "int");
+auto floatType = std::make_shared<mdsl::semantic::PrimitiveType>(
+    mdsl::semantic::TypeKind::Float, "float");
+
+registry.RegisterType(intType);
+registry.RegisterType(floatType);
+
+auto arrayType = std::make_shared<mdsl::semantic::ArrayType>(intType, 10);
+auto ptrType = std::make_shared<mdsl::semantic::PointerType>(intType);
+
+if (intType->Equals(floatType.get()))
 {
-    throw std::runtime_error("Type mismatch");
+    // Types are equal
 }
 ```
 
@@ -204,17 +160,17 @@ if (exprType != expectedType)
 
 ```
 mdsl/
-├── include/
-│   ├── mdsl.h              # Main header
-│   └── mdsl/
-│       ├── core/           # Core utilities
-│       ├── lexer/          # Tokenization
-│       ├── parser/         # Parsing
-│       ├── semantic/       # Analysis
-│       ├── ir/             # IR generation
-│       ├── codegen/        # Code emission
-│       └── util/           # Utilities
-└── src/                    # Implementation
+  include/
+    mdsl.h              # Main header
+    mdsl/
+      core/             # Core utilities
+      lexer/            # Tokenization
+      parser/           # Parsing
+      semantic/         # Analysis
+      ir/               # IR generation
+      codegen/          # Code emission
+      util/             # Utilities
+  src/                  # Implementation
 ```
 
 ## License
