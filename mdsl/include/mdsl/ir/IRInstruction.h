@@ -83,7 +83,6 @@ namespace mdsl
 		protected:
 			IROpcode			  opcode;
 			std::vector<IRValue*> operands;
-			std::vector<uint32_t> successorBlocks;
 
 		public:
 			IRInstruction(IROpcode op, uint32_t id = 0) : IRValue("", id), opcode(op) {}
@@ -115,21 +114,6 @@ namespace mdsl
 			size_t GetNumOperands() const
 			{
 				return operands.size();
-			}
-
-			void AddSuccessor(uint32_t blockId)
-			{
-				successorBlocks.push_back(blockId);
-			}
-
-			const std::vector<uint32_t>& GetSuccessors() const
-			{
-				return successorBlocks;
-			}
-
-			size_t GetNumSuccessors() const
-			{
-				return successorBlocks.size();
 			}
 
 			virtual std::string ToString() const
