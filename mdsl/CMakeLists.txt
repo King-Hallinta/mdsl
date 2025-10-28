@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(MDSL
     VERSION 1.0.0
-    DESCRIPTION "Meta Domain-Specific Language Library for C++"
+    DESCRIPTION "Framework for building custom languages"
     LANGUAGES CXX
 )
 
@@ -34,7 +34,6 @@ set_target_properties(MDSL PROPERTIES
     PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/MDSL.h"
 )
 
-# Installation
 include(GNUInstallDirs)
 
 install(TARGETS MDSL
