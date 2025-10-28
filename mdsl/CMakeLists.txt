@@ -27,6 +27,7 @@ else()
 endif()
 
 set_target_properties(MDSL PROPERTIES
+    OUTPUT_NAME "mdsl"
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
     VERSION ${PROJECT_VERSION}
