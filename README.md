@@ -44,7 +44,7 @@ target_link_libraries(your_target PRIVATE MDSL)
 ### Basic Pipeline
 
 ```cpp
-#include <MDSL.h>
+#include <mdsl.h>
 using namespace mdsl;
 
 std::string source = "x = 10 + 20";
@@ -59,7 +59,7 @@ auto code = codegen::CppEmitter().Emit(irModule);
 ### Example: Simple Expression Language
 
 ```cpp
-#include <MDSL.h>
+#include <mdsl.h>
 
 class ExprLexer : public mdsl::lexer::Lexer
 {
@@ -205,7 +205,7 @@ if (exprType != expectedType)
 ```
 mdsl/
 ├── include/
-│   ├── MDSL.h              # Main header
+│   ├── mdsl.h              # Main header
 │   └── mdsl/
 │       ├── core/           # Core utilities
 │       ├── lexer/          # Tokenization
