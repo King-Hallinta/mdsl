@@ -3,6 +3,7 @@
 #include <exception>
 #include <functional>
 #include <string>
+#include <utility>
 #include <variant>
 
 namespace mdsl
@@ -101,13 +102,13 @@ namespace mdsl
 				return IsOk() ? Value() : default_value;
 			}
 
-			T Unwrap()
+			T&& Unwrap()
 			{
 				if (IsError())
 				{
 					throw ResultException("Called Unwrap() on Error: " + GetError().ToString());
 				}
-				return Value();
+				return std::move(std::get<T>(m_data));
 			}
 
 			T UnwrapOr(const T& default_value)

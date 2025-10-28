@@ -271,55 +271,53 @@ namespace mdsl
 
 				if (isFloat)
 				{
-				try
-				{
-					token.floatValue = std::stod(lexeme);
-				}
-				catch (const std::out_of_range&)
-				{
-					if (diagnostics)
+					try
 					{
-						diagnostics->ReportError(
-							"Floating point number out of range: " + lexeme,
-							core::SourceSpan(start, GetCurrentLocation()));
+						token.floatValue = std::stod(lexeme);
 					}
-					token.type = TokenType::Error;
-				}
-				catch (const std::invalid_argument&)
-				{
-					if (diagnostics)
+					catch (const std::out_of_range&)
 					{
-						diagnostics->ReportError(
-							"Invalid floating point number: " + lexeme,
-							core::SourceSpan(start, GetCurrentLocation()));
+						if (diagnostics)
+						{
+							diagnostics->ReportError("Floating point number out of range: " + lexeme,
+								core::SourceSpan(start, GetCurrentLocation()));
+						}
+						token.type = TokenType::Error;
 					}
-					token.type = TokenType::Error;
-				}
+					catch (const std::invalid_argument&)
+					{
+						if (diagnostics)
+						{
+							diagnostics->ReportError("Invalid floating point number: " + lexeme,
+								core::SourceSpan(start, GetCurrentLocation()));
+						}
+						token.type = TokenType::Error;
+					}
 				}
 				else
 				{
-				try
-				{
-					token.intValue = std::stoll(lexeme);
-				}
-				catch (const std::out_of_range&)
-				{
-					if (diagnostics)
+					try
 					{
-						diagnostics->ReportError(
-							"Integer out of range: " + lexeme, core::SourceSpan(start, GetCurrentLocation()));
+						token.intValue = std::stoll(lexeme);
 					}
-					token.type = TokenType::Error;
-				}
-				catch (const std::invalid_argument&)
-				{
-					if (diagnostics)
+					catch (const std::out_of_range&)
 					{
-						diagnostics->ReportError(
-							"Invalid integer: " + lexeme, core::SourceSpan(start, GetCurrentLocation()));
+						if (diagnostics)
+						{
+							diagnostics->ReportError("Integer out of range: " + lexeme,
+								core::SourceSpan(start, GetCurrentLocation()));
+						}
+						token.type = TokenType::Error;
 					}
-					token.type = TokenType::Error;
-				}
+					catch (const std::invalid_argument&)
+					{
+						if (diagnostics)
+						{
+							diagnostics->ReportError(
+								"Invalid integer: " + lexeme, core::SourceSpan(start, GetCurrentLocation()));
+						}
+						token.type = TokenType::Error;
+					}
 				}
 
 				return token;

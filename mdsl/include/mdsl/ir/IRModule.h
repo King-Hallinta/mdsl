@@ -106,6 +106,12 @@ namespace mdsl
 
 			IRFunction* CreateFunction(const std::string& functionName)
 			{
+				auto it = functionMap.find(functionName);
+				if (it != functionMap.end())
+				{
+					return it->second;
+				}
+
 				functions.push_back(std::make_unique<IRFunction>(functionName));
 				IRFunction* func = functions.back().get();
 				functionMap[functionName] = func;

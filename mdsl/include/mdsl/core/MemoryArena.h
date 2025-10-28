@@ -2,7 +2,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 namespace mdsl
@@ -35,6 +37,7 @@ namespace mdsl
 			std::vector<std::unique_ptr<Block>> blocks;
 			size_t								blockSize;
 			size_t								currentBlockIndex;
+			std::vector<std::function<void()>>	destructors;
 
 			Block* GetCurrentBlock()
 			{
@@ -78,7 +81,13 @@ namespace mdsl
 			{
 			}
 
-			~MemoryArena() {}
+			~MemoryArena()
+			{
+				for (auto it = destructors.rbegin(); it != destructors.rend(); ++it)
+				{
+					(*it)();
+				}
+			}
 
 			MemoryArena(const MemoryArena&) = delete;
 			MemoryArena& operator=(const MemoryArena&) = delete;
@@ -91,11 +100,24 @@ namespace mdsl
 			template <typename T, typename... Args> T* create(Args&&... args)
 			{
 				void* memory = Allocate(sizeof(T), alignof(T));
-				return new (memory) T(std::forward<Args>(args)...);
+				T*	  obj = new (memory) T(std::forward<Args>(args)...);
+
+				if constexpr (!std::is_trivially_destructible_v<T>)
+				{
+					destructors.push_back([obj]() { obj->~T(); });
+				}
+
+				return obj;
 			}
 
 			void Reset()
 			{
+				for (auto it = destructors.rbegin(); it != destructors.rend(); ++it)
+				{
+					(*it)();
+				}
+				destructors.clear();
+
 				for (auto& block : blocks)
 				{
 					block->used = 0;

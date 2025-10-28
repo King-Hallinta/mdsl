@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <sstream>
 #include <string>
 
@@ -62,7 +63,8 @@ namespace mdsl
 					return "<invalid span>";
 				}
 
-				if (start.filename == end.filename && start.line == end.line)
+				if (start.filename && end.filename && std::strcmp(start.filename, end.filename) == 0 &&
+					start.line == end.line)
 				{
 					std::ostringstream oss;
 					oss << start.filename << ":" << start.line << ":" << start.column << "-" << end.column;

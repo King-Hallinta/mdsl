@@ -2,6 +2,7 @@
 
 #include "../core/SourceLocation.h"
 
+#include <cassert>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -170,6 +171,7 @@ namespace mdsl
 
 			void ExitScope()
 			{
+				assert(currentScope->GetParent() && "Cannot exit global scope");
 				if (currentScope->GetParent())
 				{
 					currentScope = currentScope->GetParent();
