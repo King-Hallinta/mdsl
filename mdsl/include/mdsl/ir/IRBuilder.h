@@ -131,6 +131,7 @@ namespace mdsl
 			IRInstruction* CreateJump(IRBasicBlock* target)
 			{
 				IRInstruction* instr = CreateInstruction(IROpcode::Jump);
+				instr->AddSuccessor(target->GetId());
 				return instr;
 			}
 
@@ -139,6 +140,8 @@ namespace mdsl
 			{
 				IRInstruction* instr = CreateInstruction(IROpcode::JumpIf);
 				instr->AddOperand(condition);
+				instr->AddSuccessor(trueBlock->GetId());
+				instr->AddSuccessor(falseBlock->GetId());
 				return instr;
 			}
 
