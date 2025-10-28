@@ -98,6 +98,20 @@ namespace mdsl
 					output << " %" << instruction->GetOperand(i)->GetId();
 				}
 
+				if (instruction->GetNumSuccessors() > 0)
+				{
+					output << " -> [";
+					for (size_t i = 0; i < instruction->GetNumSuccessors(); ++i)
+					{
+						if (i > 0)
+						{
+							output << ", ";
+						}
+						output << "bb" << instruction->GetSuccessors()[i];
+					}
+					output << "]";
+				}
+
 				output << "\n";
 			}
 
@@ -132,6 +146,19 @@ namespace mdsl
 			void DumpModule(const ir::IRModule* module)
 			{
 				output << "module " << module->GetName() << "\n\n";
+
+				if (!module->GetConstants().empty())
+				{
+					output << "constants:\n";
+					indentLevel++;
+					for (const auto& constant : module->GetConstants())
+					{
+						WriteIndent();
+						output << "%" << constant->GetId() << " = const " << constant->GetValue() << "\n";
+					}
+					indentLevel--;
+					output << "\n";
+				}
 
 				for (const auto& function : module->GetFunctions())
 				{

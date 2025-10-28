@@ -153,7 +153,11 @@ namespace mdsl
 
 			IRConstant* CreateConstant(int64_t value)
 			{
-				return new IRConstant(value, nextValueId++);
+				if (!module)
+				{
+					return nullptr;
+				}
+				return module->CreateConstant(value, nextValueId++);
 			}
 
 			void Reset()

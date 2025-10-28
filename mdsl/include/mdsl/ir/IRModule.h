@@ -95,6 +95,7 @@ namespace mdsl
 			std::string									 name;
 			std::vector<std::unique_ptr<IRFunction>>	 functions;
 			std::unordered_map<std::string, IRFunction*> functionMap;
+			std::vector<std::unique_ptr<IRConstant>>	 constants;
 
 		public:
 			IRModule(const std::string& n = "module") : name(n) {}
@@ -136,6 +137,17 @@ namespace mdsl
 			size_t GetFunctionCount() const
 			{
 				return functions.size();
+			}
+
+			IRConstant* CreateConstant(int64_t value, uint32_t id)
+			{
+				constants.push_back(std::make_unique<IRConstant>(value, id));
+				return constants.back().get();
+			}
+
+			const std::vector<std::unique_ptr<IRConstant>>& GetConstants() const
+			{
+				return constants;
 			}
 		};
 	} // namespace ir

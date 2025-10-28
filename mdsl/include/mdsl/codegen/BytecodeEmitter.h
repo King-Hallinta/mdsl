@@ -76,6 +76,15 @@ namespace mdsl
 					ir::IRValue* operand = instruction->GetOperand(i);
 					Emit(operand->GetId());
 				}
+
+				if (instruction->GetNumSuccessors() > 0)
+				{
+					Emit(static_cast<uint32_t>(instruction->GetNumSuccessors()));
+					for (size_t i = 0; i < instruction->GetNumSuccessors(); ++i)
+					{
+						Emit(instruction->GetSuccessors()[i]);
+					}
+				}
 			}
 
 			void EmitFunction(const ir::IRFunction* function)
@@ -91,6 +100,13 @@ namespace mdsl
 
 			void EmitModule(const ir::IRModule* module)
 			{
+				Emit(static_cast<uint32_t>(module->GetConstants().size()));
+				for (const auto& constant : module->GetConstants())
+				{
+					Emit(constant->GetId());
+					Emit(constant->GetValue());
+				}
+
 				Emit(static_cast<uint32_t>(module->GetFunctionCount()));
 
 				for (const auto& function : module->GetFunctions())
