@@ -214,7 +214,7 @@ namespace mdsl
 				Log(Level::Warning, message);
 			}
 
-			void GetError(const std::string& message)
+			void Error(const std::string& message)
 			{
 				Log(Level::Error, message);
 			}
