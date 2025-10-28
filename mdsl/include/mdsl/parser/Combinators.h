@@ -63,11 +63,13 @@ namespace mdsl
 				return Parser<T>(
 					[this, alternative](std::shared_ptr<lexer::ILexer>& lexer) -> ParseResult<T>
 					{
+						auto checkpoint = lexer->SaveCheckpoint();
 						auto result = this->Parse(lexer);
 						if (result.IsOk())
 						{
 							return result;
 						}
+						lexer->RestoreCheckpoint(checkpoint);
 						return alternative.Parse(lexer);
 					});
 			}
@@ -82,9 +84,11 @@ namespace mdsl
 
 					while (true)
 					{
+						auto checkpoint = lexer->SaveCheckpoint();
 						auto result = parser.Parse(lexer);
 						if (result.IsError())
 						{
+							lexer->RestoreCheckpoint(checkpoint);
 							break;
 						}
 						results.push_back(result.Value());
@@ -110,9 +114,11 @@ namespace mdsl
 
 					while (true)
 					{
+						auto checkpoint = lexer->SaveCheckpoint();
 						auto result = parser.Parse(lexer);
 						if (result.IsError())
 						{
+							lexer->RestoreCheckpoint(checkpoint);
 							break;
 						}
 						results.push_back(result.Value());
@@ -127,11 +133,13 @@ namespace mdsl
 			return Parser<T>(
 				[parser, defaultValue](std::shared_ptr<lexer::ILexer>& lexer) -> ParseResult<T>
 				{
+					auto checkpoint = lexer->SaveCheckpoint();
 					auto result = parser.Parse(lexer);
 					if (result.IsOk())
 					{
 						return result;
 					}
+					lexer->RestoreCheckpoint(checkpoint);
 					return ParseResult<T>(defaultValue);
 				});
 		}
@@ -144,24 +152,29 @@ namespace mdsl
 				{
 					std::vector<T> results;
 
+					auto checkpoint = lexer->SaveCheckpoint();
 					auto first = parser.Parse(lexer);
 					if (first.IsError())
 					{
+						lexer->RestoreCheckpoint(checkpoint);
 						return ParseResult<std::vector<T>>(results);
 					}
 					results.push_back(first.Value());
 
 					while (true)
 					{
+						checkpoint = lexer->SaveCheckpoint();
 						auto sepResult = separator.Parse(lexer);
 						if (sepResult.IsError())
 						{
+							lexer->RestoreCheckpoint(checkpoint);
 							break;
 						}
 
 						auto itemResult = parser.Parse(lexer);
 						if (itemResult.IsError())
 						{
+							lexer->RestoreCheckpoint(checkpoint);
 							return ParseResult<std::vector<T>>(itemResult.GetError());
 						}
 						results.push_back(itemResult.Value());

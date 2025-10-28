@@ -629,6 +629,24 @@ namespace mdsl
 				return position >= source.length();
 			}
 
+			LexerCheckpoint SaveCheckpoint() override
+			{
+				LexerCheckpoint checkpoint;
+				checkpoint.position = position;
+				checkpoint.line = line;
+				checkpoint.column = column;
+				checkpoint.lookaheadBuffer = lookaheadBuffer;
+				return checkpoint;
+			}
+
+			void RestoreCheckpoint(const LexerCheckpoint& checkpoint) override
+			{
+				position = checkpoint.position;
+				line = checkpoint.line;
+				column = checkpoint.column;
+				lookaheadBuffer = checkpoint.lookaheadBuffer;
+			}
+
 			void SetDiagnosticEngine(std::shared_ptr<core::DiagnosticEngine> engine) override
 			{
 				diagnostics = engine;
