@@ -28,6 +28,7 @@ endif()
 
 set_target_properties(MDSL PROPERTIES
     OUTPUT_NAME "mdsl"
+    OUTPUT_NAME_DEBUG "mdsld"
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
     VERSION ${PROJECT_VERSION}
