@@ -192,6 +192,16 @@ namespace mdsl
 				return std::isalnum(ch) || ch == '_' || config.identifierChars.find(ch) != std::string::npos;
 			}
 
+			std::string toLower(const std::string& str) const
+			{
+				std::string result = str;
+				for (char& c : result)
+				{
+					c = std::tolower(static_cast<unsigned char>(c));
+				}
+				return result;
+			}
+
 			Token lexIdentifier()
 			{
 				core::SourceLocation start = GetCurrentLocation();
@@ -205,7 +215,7 @@ namespace mdsl
 				std::string lexeme(source.substr(startPos, position - startPos));
 
 				TokenType	type = TokenType::Identifier;
-				std::string lookupKey = config.caseInsensitiveKeywords ? lexeme : lexeme;
+				std::string lookupKey = config.caseInsensitiveKeywords ? toLower(lexeme) : lexeme;
 
 				auto it = keywords.find(lookupKey);
 				if (it != keywords.end())
@@ -261,11 +271,55 @@ namespace mdsl
 
 				if (isFloat)
 				{
+				try
+				{
 					token.floatValue = std::stod(lexeme);
+				}
+				catch (const std::out_of_range&)
+				{
+					if (diagnostics)
+					{
+						diagnostics->ReportError(
+							"Floating point number out of range: " + lexeme,
+							core::SourceSpan(start, GetCurrentLocation()));
+					}
+					token.type = TokenType::Error;
+				}
+				catch (const std::invalid_argument&)
+				{
+					if (diagnostics)
+					{
+						diagnostics->ReportError(
+							"Invalid floating point number: " + lexeme,
+							core::SourceSpan(start, GetCurrentLocation()));
+					}
+					token.type = TokenType::Error;
+				}
 				}
 				else
 				{
+				try
+				{
 					token.intValue = std::stoll(lexeme);
+				}
+				catch (const std::out_of_range&)
+				{
+					if (diagnostics)
+					{
+						diagnostics->ReportError(
+							"Integer out of range: " + lexeme, core::SourceSpan(start, GetCurrentLocation()));
+					}
+					token.type = TokenType::Error;
+				}
+				catch (const std::invalid_argument&)
+				{
+					if (diagnostics)
+					{
+						diagnostics->ReportError(
+							"Invalid integer: " + lexeme, core::SourceSpan(start, GetCurrentLocation()));
+					}
+					token.type = TokenType::Error;
+				}
 				}
 
 				return token;
@@ -538,7 +592,8 @@ namespace mdsl
 
 			void AddKeyword(const std::string& keyword, TokenType type)
 			{
-				keywords[keyword] = type;
+				std::string key = config.caseInsensitiveKeywords ? toLower(keyword) : keyword;
+				keywords[key] = type;
 			}
 
 			Token NextToken() override
