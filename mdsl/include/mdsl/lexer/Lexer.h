@@ -3,6 +3,7 @@
 #include "../core/StringPool.h"
 #include "ILexer.h"
 
+#include <cctype>
 #include <functional>
 #include <string_view>
 #include <unordered_map>
@@ -83,7 +84,7 @@ namespace mdsl
 
 			void skipWhitespace()
 			{
-				while (std::isspace(currentChar()))
+				while (std::isspace(static_cast<unsigned char>(currentChar())))
 				{
 					Advance();
 				}
@@ -157,7 +158,7 @@ namespace mdsl
 			{
 				while (true)
 				{
-					if (config.skipWhitespace && std::isspace(currentChar()))
+					if (config.skipWhitespace && std::isspace(static_cast<unsigned char>(currentChar())))
 					{
 						skipWhitespace();
 						continue;
@@ -183,13 +184,13 @@ namespace mdsl
 
 			bool isIdentifierStart(char ch) const
 			{
-				return std::isalpha(ch) || ch == '_' ||
+				return std::isalpha(static_cast<unsigned char>(ch)) || ch == '_' ||
 					   config.identifierStartChars.find(ch) != std::string::npos;
 			}
 
 			bool isIdentifierChar(char ch) const
 			{
-				return std::isalnum(ch) || ch == '_' || config.identifierChars.find(ch) != std::string::npos;
+				return std::isalnum(static_cast<unsigned char>(ch)) || ch == '_' || config.identifierChars.find(ch) != std::string::npos;
 			}
 
 			std::string toLower(const std::string& str) const
@@ -232,17 +233,17 @@ namespace mdsl
 				size_t				 startPos = position;
 				bool				 isFloat = false;
 
-				while (std::isdigit(currentChar()))
+				while (std::isdigit(static_cast<unsigned char>(currentChar())))
 				{
 					Advance();
 				}
 
-				if (currentChar() == '.' && std::isdigit(peekChar()))
+				if (currentChar() == '.' && std::isdigit(static_cast<unsigned char>(peekChar())))
 				{
 					isFloat = true;
 					Advance();
 
-					while (std::isdigit(currentChar()))
+					while (std::isdigit(static_cast<unsigned char>(currentChar())))
 					{
 						Advance();
 					}
@@ -258,7 +259,7 @@ namespace mdsl
 						Advance();
 					}
 
-					while (std::isdigit(currentChar()))
+					while (std::isdigit(static_cast<unsigned char>(currentChar())))
 					{
 						Advance();
 					}
@@ -385,6 +386,67 @@ namespace mdsl
 				return Token(TokenType::String, value, core::SourceSpan(start, GetCurrentLocation()));
 			}
 
+			Token lexCharacter()
+			{
+				core::SourceLocation start = GetCurrentLocation();
+				Advance();
+
+				std::string value;
+
+				if (currentChar() == '\\')
+				{
+					Advance();
+					switch (currentChar())
+					{
+						case 'n':
+							value += '\n';
+							break;
+						case 't':
+							value += '\t';
+							break;
+						case 'r':
+							value += '\r';
+							break;
+						case '\\':
+							value += '\\';
+							break;
+						case '\'':
+							value += '\'';
+							break;
+						case '"':
+							value += '"';
+							break;
+						case '0':
+							value += '\0';
+							break;
+						default:
+							value += currentChar();
+							break;
+					}
+					Advance();
+				}
+				else if (currentChar() != '\'' && currentChar() != '\0')
+				{
+					value += currentChar();
+					Advance();
+				}
+
+				if (currentChar() != '\'')
+				{
+					if (diagnostics)
+					{
+						diagnostics->ReportError(
+							"Unterminated character literal", core::SourceSpan(start, GetCurrentLocation()));
+					}
+				}
+				else
+				{
+					Advance();
+				}
+
+				return Token(TokenType::Character, value, core::SourceSpan(start, GetCurrentLocation()));
+			}
+
 			Token lexSingleCharToken(TokenType type)
 			{
 				core::SourceLocation start = GetCurrentLocation();
@@ -411,14 +473,19 @@ namespace mdsl
 					return lexIdentifier();
 				}
 
-				if (std::isdigit(ch))
+				if (std::isdigit(static_cast<unsigned char>(ch)))
 				{
 					return lexNumber();
 				}
 
-				if (ch == '"' || ch == '\'')
+				if (ch == '"')
 				{
 					return lexString();
+				}
+
+				if (ch == '\'')
+				{
+					return lexCharacter();
 				}
 
 				core::SourceLocation start = GetCurrentLocation();
