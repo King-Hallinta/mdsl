@@ -3,6 +3,7 @@
 #include "../core/Result.h"
 #include "../lexer/ILexer.h"
 #include "ASTNode.h"
+#include "TokenStream.h"
 
 #include <functional>
 #include <memory>
@@ -190,6 +191,192 @@ namespace mdsl
 				[type](std::shared_ptr<lexer::ILexer>& lexer) -> ParseResult<lexer::Token>
 				{
 					auto tok = lexer->NextToken();
+					if (tok.type == type)
+					{
+						return ParseResult<lexer::Token>(tok);
+					}
+
+					return ParseResult<lexer::Token>(
+						core::Error(core::ErrorCode::ParserError, "Unexpected token"));
+				});
+		}
+
+		template <typename T> class StreamParser
+		{
+		public:
+			using ParseFunc = std::function<ParseResult<T>(TokenStream&)>;
+
+		private:
+			ParseFunc parseFunc;
+
+		public:
+			StreamParser(ParseFunc func) : parseFunc(func) {}
+
+			ParseResult<T> Parse(TokenStream& stream) const
+			{
+				return parseFunc(stream);
+			}
+
+			template <typename U> StreamParser<U> map(std::function<U(const T&)> mapper) const
+			{
+				return StreamParser<U>(
+					[this, mapper](TokenStream& stream) -> ParseResult<U>
+					{
+						auto result = this->Parse(stream);
+						if (result.IsError())
+						{
+							return ParseResult<U>(result.GetError());
+						}
+						return ParseResult<U>(mapper(result.Value()));
+					});
+			}
+
+			template <typename U> StreamParser<U> flatMap(std::function<StreamParser<U>(const T&)> mapper) const
+			{
+				return StreamParser<U>(
+					[this, mapper](TokenStream& stream) -> ParseResult<U>
+					{
+						auto result = this->Parse(stream);
+						if (result.IsError())
+						{
+							return ParseResult<U>(result.GetError());
+						}
+						return mapper(result.Value()).Parse(stream);
+					});
+			}
+
+			StreamParser<T> orElse(StreamParser<T> alternative) const
+			{
+				return StreamParser<T>(
+					[this, alternative](TokenStream& stream) -> ParseResult<T>
+					{
+						auto checkpoint = stream.SaveCheckpoint();
+						auto result = this->Parse(stream);
+						if (result.IsOk())
+						{
+							return result;
+						}
+						stream.RestoreCheckpoint(checkpoint);
+						return alternative.Parse(stream);
+					});
+			}
+		};
+
+		template <typename T> StreamParser<std::vector<T>> streamMany(StreamParser<T> parser)
+		{
+			return StreamParser<std::vector<T>>(
+				[parser](TokenStream& stream) -> ParseResult<std::vector<T>>
+				{
+					std::vector<T> results;
+
+					while (true)
+					{
+						auto checkpoint = stream.SaveCheckpoint();
+						auto result = parser.Parse(stream);
+						if (result.IsError())
+						{
+							stream.RestoreCheckpoint(checkpoint);
+							break;
+						}
+						results.push_back(result.Value());
+					}
+
+					return ParseResult<std::vector<T>>(results);
+				});
+		}
+
+		template <typename T> StreamParser<std::vector<T>> streamMany1(StreamParser<T> parser)
+		{
+			return StreamParser<std::vector<T>>(
+				[parser](TokenStream& stream) -> ParseResult<std::vector<T>>
+				{
+					std::vector<T> results;
+
+					auto first = parser.Parse(stream);
+					if (first.IsError())
+					{
+						return ParseResult<std::vector<T>>(first.GetError());
+					}
+					results.push_back(first.Value());
+
+					while (true)
+					{
+						auto checkpoint = stream.SaveCheckpoint();
+						auto result = parser.Parse(stream);
+						if (result.IsError())
+						{
+							stream.RestoreCheckpoint(checkpoint);
+							break;
+						}
+						results.push_back(result.Value());
+					}
+
+					return ParseResult<std::vector<T>>(results);
+				});
+		}
+
+		template <typename T> StreamParser<T> streamOptional(StreamParser<T> parser, T defaultValue)
+		{
+			return StreamParser<T>(
+				[parser, defaultValue](TokenStream& stream) -> ParseResult<T>
+				{
+					auto checkpoint = stream.SaveCheckpoint();
+					auto result = parser.Parse(stream);
+					if (result.IsOk())
+					{
+						return result;
+					}
+					stream.RestoreCheckpoint(checkpoint);
+					return ParseResult<T>(defaultValue);
+				});
+		}
+
+		template <typename T, typename Sep>
+		StreamParser<std::vector<T>> streamSepBy(StreamParser<T> parser, StreamParser<Sep> separator)
+		{
+			return StreamParser<std::vector<T>>(
+				[parser, separator](TokenStream& stream) -> ParseResult<std::vector<T>>
+				{
+					std::vector<T> results;
+
+					auto checkpoint = stream.SaveCheckpoint();
+					auto first = parser.Parse(stream);
+					if (first.IsError())
+					{
+						stream.RestoreCheckpoint(checkpoint);
+						return ParseResult<std::vector<T>>(results);
+					}
+					results.push_back(first.Value());
+
+					while (true)
+					{
+						checkpoint = stream.SaveCheckpoint();
+						auto sepResult = separator.Parse(stream);
+						if (sepResult.IsError())
+						{
+							stream.RestoreCheckpoint(checkpoint);
+							break;
+						}
+
+						auto itemResult = parser.Parse(stream);
+						if (itemResult.IsError())
+						{
+							stream.RestoreCheckpoint(checkpoint);
+							return ParseResult<std::vector<T>>(itemResult.GetError());
+						}
+						results.push_back(itemResult.Value());
+					}
+
+					return ParseResult<std::vector<T>>(results);
+				});
+		}
+
+		inline StreamParser<lexer::Token> streamToken(lexer::TokenType type)
+		{
+			return StreamParser<lexer::Token>(
+				[type](TokenStream& stream) -> ParseResult<lexer::Token>
+				{
+					auto tok = stream.NextToken();
 					if (tok.type == type)
 					{
 						return ParseResult<lexer::Token>(tok);
